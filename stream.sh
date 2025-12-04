@@ -51,11 +51,28 @@ fi
 FFMPEG_CMD="$FFMPEG_CMD \
     -c:v libx264 \
     -preset veryfast \
+    -tune zerolatency \
+    -b:v ${BITRATE} \
     -maxrate ${BITRATE} \
     -bufsize $(echo "${BITRATE}" | sed 's/k/*2/' | bc)k \
+    -minrate $(echo "${BITRATE}" | sed 's/k/*0.8/' | bc)k \
     -pix_fmt yuv420p \
-    -g 60 \
-    -f flv rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}"
+    -g $(echo "${FRAMERATE} * 2" | bc) \
+    -keyint_min ${FRAMERATE} \
+    -sc_threshold 0 \
+    -profile:v high \
+    -level 4.0 \
+    -f flv \
+    -flvflags no_duration_filesize \
+    rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}"
 
 echo "Executing: $FFMPEG_CMD"
-eval $FFMPEG_CMD
+echo "Starting stream to YouTube..."
+eval $FFMPEG_CMD 2>&1 | tee -a /var/log/supervisor/ffmpeg_stream.log
+
+EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "FFmpeg exited with code: $EXIT_CODE"
+    echo "Check /var/log/supervisor/ffmpeg_err.log for details"
+fi
+exit $EXIT_CODE
