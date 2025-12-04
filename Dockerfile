@@ -2,10 +2,13 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies
+# Install base dependencies
 RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    unzip \
     xvfb \
-    chromium-browser \
     ffmpeg \
     pulseaudio \
     x11vnc \
@@ -16,6 +19,16 @@ RUN apt-get update && apt-get install -y \
     curl \
     bc \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Chromium by downloading from official source
+# Using a fixed version URL for reliability
+RUN CHROMIUM_REV=$(curl -s "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2FLAST_CHANGE?alt=media") && \
+    wget -q "https://commondatastorage.googleapis.com/chromium-browser-snapshots/Linux_x64/${CHROMIUM_REV}/chrome-linux.zip" -O /tmp/chrome-linux.zip && \
+    unzip -q /tmp/chrome-linux.zip -d /opt/ && \
+    rm /tmp/chrome-linux.zip && \
+    mv /opt/chrome-linux /opt/chromium && \
+    ln -s /opt/chromium/chrome /usr/bin/chromium-browser && \
+    chmod +x /usr/bin/chromium-browser
 
 # Install Python dependencies
 RUN pip3 install fastapi uvicorn pydantic
