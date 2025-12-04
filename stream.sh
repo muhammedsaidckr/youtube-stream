@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Configuration from environment variables
-WEBSITE_URL="${WEBSITE_URL:-https://www.example.com}"
 YOUTUBE_KEY="${YOUTUBE_KEY}"
 DISPLAY=":99"
 RESOLUTION="${RESOLUTION:-1920x1080}"
@@ -15,36 +14,29 @@ if [ -z "$YOUTUBE_KEY" ]; then
     exit 1
 fi
 
-echo "Starting stream for: $WEBSITE_URL"
+export DISPLAY=:99
+
+echo "Starting ffmpeg stream..."
 echo "Resolution: $RESOLUTION"
 echo "Framerate: $FRAMERATE"
 echo "Bitrate: $BITRATE"
+echo "Audio: $AUDIO"
 
-# Start Xvfb
-Xvfb :99 -screen 0 ${RESOLUTION}x24 &
-XVFB_PID=$!
-sleep 2
+# Wait for Xvfb and browser to be ready
+echo "Waiting for Xvfb and browser to be ready..."
+for i in {1..30}; do
+    if xdpyinfo -display :99 >/dev/null 2>&1; then
+        echo "Xvfb is ready"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        echo "Error: Xvfb did not become ready in time"
+        exit 1
+    fi
+    sleep 1
+done
 
-# Start PulseAudio (for audio support)
-pulseaudio --start --exit-idle-time=-1
-sleep 1
-
-# Start Chromium in kiosk mode
-export DISPLAY=:99
-chromium-browser \
-    --kiosk \
-    --no-sandbox \
-    --disable-dev-shm-usage \
-    --disable-gpu \
-    --window-size=${RESOLUTION} \
-    --start-fullscreen \
-    --disable-infobars \
-    --disable-notifications \
-    --no-first-run \
-    "${WEBSITE_URL}" &
-BROWSER_PID=$!
-
-# Wait for browser to load
+# Wait a bit more for browser to fully load
 sleep 5
 
 # Build ffmpeg command
@@ -65,8 +57,5 @@ FFMPEG_CMD="$FFMPEG_CMD \
     -g 60 \
     -f flv rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}"
 
-echo "Starting ffmpeg stream..."
+echo "Executing: $FFMPEG_CMD"
 eval $FFMPEG_CMD
-
-# Cleanup on exit
-trap "kill $XVFB_PID $BROWSER_PID 2>/dev/null" EXIT

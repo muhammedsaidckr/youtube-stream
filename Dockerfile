@@ -9,10 +9,12 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     pulseaudio \
     x11vnc \
+    x11-utils \
     supervisor \
     python3 \
     python3-pip \
     curl \
+    bc \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
