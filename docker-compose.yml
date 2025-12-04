@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  website-streamer:
+    build: .
+    container_name: website-to-youtube
+    restart: unless-stopped
+    
+    environment:
+      # Required: Your YouTube Stream Key
+      - YOUTUBE_KEY=${YOUTUBE_KEY}
+      
+      # Website to stream
+      - WEBSITE_URL=${WEBSITE_URL:-https://www.example.com}
+      
+      # Stream settings
+      - RESOLUTION=${RESOLUTION:-1920x1080}
+      - FRAMERATE=${FRAMERATE:-30}
+      - BITRATE=${BITRATE:-3000k}
+      - ENABLE_AUDIO=${ENABLE_AUDIO:-false}
+    
+    ports:
+      - "8000:8000"  # FastAPI management interface
+    
+    volumes:
+      - ./logs:/var/log/supervisor
+    
+    # Increase shared memory size for Chromium
+    shm_size: '2gb'
+    
+    # Optional: Add capabilities for better performance
+    cap_add:
+      - SYS_ADMIN
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: youtube-stream-network
