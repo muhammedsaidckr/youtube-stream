@@ -40,7 +40,7 @@ done
 sleep 5
 
 # Build ffmpeg command
-FFMPEG_CMD="ffmpeg -f x11grab -video_size ${RESOLUTION} -framerate ${FRAMERATE} -i ${DISPLAY}"
+FFMPEG_CMD="ffmpeg -loglevel info -f x11grab -video_size ${RESOLUTION} -framerate ${FRAMERATE} -i ${DISPLAY}"
 
 # Add audio if enabled
 if [ "$AUDIO" = "true" ]; then
@@ -48,26 +48,31 @@ if [ "$AUDIO" = "true" ]; then
 fi
 
 # Add video encoding and output
+# Force minimum bitrate to ensure YouTube accepts the stream
+MIN_BITRATE=$(echo "${BITRATE}" | sed 's/k//' | awk '{print int($1*0.5)}')k
 FFMPEG_CMD="$FFMPEG_CMD \
     -c:v libx264 \
     -preset veryfast \
     -tune zerolatency \
     -b:v ${BITRATE} \
+    -minrate ${MIN_BITRATE} \
     -maxrate ${BITRATE} \
     -bufsize $(echo "${BITRATE}" | sed 's/k/*2/' | bc)k \
-    -minrate $(echo "${BITRATE}" | sed 's/k/*0.8/' | bc)k \
     -pix_fmt yuv420p \
     -g $(echo "${FRAMERATE} * 2" | bc) \
     -keyint_min ${FRAMERATE} \
     -sc_threshold 0 \
     -profile:v high \
     -level 4.0 \
+    -force_key_frames \"expr:gte(t,n_forced*2)\" \
     -f flv \
     -flvflags no_duration_filesize \
+    -rtmp_live live \
     rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}"
 
 echo "Executing: $FFMPEG_CMD"
 echo "Starting stream to YouTube..."
+echo "Stream URL: rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}"
 eval $FFMPEG_CMD 2>&1 | tee -a /var/log/supervisor/ffmpeg_stream.log
 
 EXIT_CODE=$?
